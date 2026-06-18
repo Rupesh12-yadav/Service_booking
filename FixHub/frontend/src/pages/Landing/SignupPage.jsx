@@ -1,0 +1,328 @@
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
+import bgImage from '../../assets/repair-bg.png';
+import authService from './auth.service';
+import { useUser } from '../../context/UserContext';
+
+const SignupPage = () => {
+  const navigate = useNavigate();
+  const { setUser } = useUser();
+  const [searchParams] = useSearchParams();
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    role: '',
+    phone: '', 
+    location: ''
+  });
+  const [suggestions, setSuggestions] = useState([]);
+
+  useEffect(() => {
+    const roleParam = searchParams.get('role');
+    if (roleParam) {
+      setFormData(prev => ({ ...prev, role: roleParam }));
+    }
+  }, [searchParams]);
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  // OpenStreetMap Nominatim API (completely free)
+  const searchLocations = async (query) => {
+    if (query.length < 3) return [];
+    
+    try {
+      // Direct Nominatim API
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=in&limit=5&addressdetails=1`,
+        {
+          headers: {
+            'User-Agent': 'FixHub-App/1.0'
+          }
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.length > 0) {
+          return data.map(item => ({
+            display_name: item.display_name,
+            place_id: item.place_id
+          }));
+        }
+      }
+    } catch (error) {
+      }
+    
+    return [];
+  };
+
+  const handleLocationChange = async (e) => {
+    const value = e.target.value;
+    setFormData({
+      ...formData,
+      location: value
+    });
+
+    if (value.length >= 3) {
+      try {
+        const results = await searchLocations(value);
+        setSuggestions(results);
+      } catch (error) {
+        setSuggestions([]);
+      }
+    } else {
+      setSuggestions([]);
+    }
+  };
+
+  const handleSelectSuggestion = (suggestion) => {
+    setFormData({
+      ...formData,
+      location: suggestion.display_name
+    });
+    setSuggestions([]);
+  };
+
+  const handleGetLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          try {
+            const response = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+            );
+            const data = await response.json();
+            setFormData((prev) => ({ ...prev, location: data.display_name }));
+          } catch (error) {
+            setFormData((prev) => ({ ...prev, location: `${latitude}, ${longitude}` }));
+          }
+          setSuggestions([]);
+        },
+        (error) => {
+          toast.error('Unable to retrieve location', {
+            duration: 4000,
+            style: { 
+              backgroundColor: "#dc2626", 
+              color: "#fff",
+              border: "none"
+            }
+          });
+        }
+      );
+    } else {
+      toast.error('Geolocation is not supported by this browser.', {
+        duration: 4000,
+        style: { 
+          backgroundColor: "#dc2626", 
+          color: "#fff",
+          border: "none"
+        }
+      });
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const userData = {
+        fullname: {
+          firstname: formData.firstName,
+          lastname: formData.lastName
+        },
+        email: formData.email,
+        password: formData.password,
+        role: formData.role,
+        phone: formData.phone,
+        location: formData.location
+      };
+
+      const response = await authService.register(userData);
+      
+      toast.success('Account created successfully!', {
+        duration: 4000,
+        style: { 
+          backgroundColor: "#257c8a", 
+          color: "#fff",
+          border: "none"
+        }
+      });
+      
+      // Store token and user data for automatic login
+      if (response.token) {
+        localStorage.setItem('token', response.token);
+        localStorage.setItem('role', response.role);
+        localStorage.setItem('user', JSON.stringify(response.user));
+        
+        // Redirect based on role
+        if (response.role === 'technician') {
+          navigate('/technician/dashboard');
+        } else {
+          navigate('/dashboard');
+        }
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Signup failed', {
+        duration: 4000,
+        style: { 
+          backgroundColor: "#dc2626", 
+          color: "#fff",
+          border: "none"
+        }
+      });
+    }
+  };
+
+  return (
+    <div
+      className="min-h-screen w-screen flex items-center justify-center bg-no-repeat bg-cover bg-center overflow-hidden px-4 py-8 relative"
+      style={{ backgroundImage: `url(${bgImage})` }}
+    >
+      <button
+        onClick={() => navigate('/')}
+        className="absolute top-4 left-4 sm:top-8 sm:left-8 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg flex items-center hover:opacity-90 transition-opacity text-sm sm:text-base"
+        style={{ backgroundColor: '#0d3d43' }}
+      >
+        <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        Back
+      </button>
+
+      <div className="w-full max-w-md rounded-xl shadow-lg bg-fixhub-bgWhite/80 backdrop-blur-md border border-white/30 p-6 sm:p-8 md:p-10 font-poppins mx-4">
+        <h2 className="text-xl sm:text-2xl font-bold text-center mb-4 sm:mb-6 text-fixhub-textDark">
+          Sign Up
+        </h2>
+
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+          <select
+            name="role"
+            value={formData.role}
+            onChange={handleChange}
+            className="w-full px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base border rounded-md focus:outline-none focus:ring-2 focus:ring-fixhub-primary"
+            required
+          >
+            <option value="">Select Role</option>
+            <option value="customer">Customer</option>
+            <option value="technician">Technician</option>
+          </select>
+          
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            <input
+              type="text"
+              name="firstName"
+              value={formData.firstName}
+              onChange={handleChange}
+              placeholder="First Name"
+              className="w-full sm:w-1/2 px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base border rounded-md focus:outline-none focus:ring-2 focus:ring-fixhub-primary"
+              required
+            />
+            <input
+              type="text"
+              name="lastName"
+              value={formData.lastName}
+              onChange={handleChange}
+              placeholder="Last Name"
+              className="w-full sm:w-1/2 px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base border rounded-md focus:outline-none focus:ring-2 focus:ring-fixhub-primary"
+              required
+            />
+          </div>
+
+          <input
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            placeholder="Email Address"
+            className="w-full px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base border rounded-md focus:outline-none focus:ring-2 focus:ring-fixhub-primary"
+            required
+          />
+          
+          <input
+            type="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            placeholder="Create Password"
+            className="w-full px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base border rounded-md focus:outline-none focus:ring-2 focus:ring-fixhub-primary"
+            required
+          />
+
+          <input
+            type="tel"
+            name="phone"
+            value={formData.phone}
+            onChange={handleChange}
+            placeholder="Mobile Number (10 digits)"
+            pattern="[0-9]{10}"
+            maxLength="10"
+            className="w-full px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base border rounded-md focus:outline-none focus:ring-2 focus:ring-fixhub-primary"
+            required
+          />
+
+          <div className="relative">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                name="location"
+                value={formData.location}
+                onChange={handleLocationChange}
+                placeholder="Location or Address"
+                className="flex-1 px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base border rounded-md focus:outline-none focus:ring-2 focus:ring-fixhub-primary"
+                required
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                onClick={handleGetLocation}
+                className="px-3 py-2 sm:px-3 sm:py-2 bg-fixhub-mint hover:bg-fixhub-primary hover:text-white text-fixhub-textDark rounded-md font-medium transition text-xs sm:text-sm whitespace-nowrap"
+              >
+                Get Location
+              </button>
+            </div>
+            {suggestions.length > 0 && (
+              <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-48 sm:max-h-60 overflow-y-auto shadow-lg">
+                {suggestions.map((suggestion) => (
+                  <li
+                    key={suggestion.place_id}
+                    onClick={() => handleSelectSuggestion(suggestion)}
+                    className="px-3 py-2 sm:px-4 sm:py-2 hover:bg-gray-100 cursor-pointer text-xs sm:text-sm text-gray-700"
+                  >
+                    {suggestion.display_name}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            className="w-full bg-fixhub-primary hover:bg-fixhub-dark text-white py-2 sm:py-2.5 rounded-md font-semibold transition text-sm sm:text-base"
+          >
+            Sign Up
+          </button>
+        </form>
+
+        <p className="text-center text-xs sm:text-sm text-fixhub-textMuted mt-4 sm:mt-6">
+          Already have an account?
+          <Link
+            to="/login"
+            className="text-fixhub-primary font-semibold ml-1 hover:underline"
+          >
+            Login
+          </Link>
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default SignupPage;
