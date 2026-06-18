@@ -420,7 +420,7 @@ const Dashboard = () => {
                         payments
                       </span>
                       <span className="text-slate-700 font-bold text-xs">
-                        ${request.estimatedPrice}
+                        ₹{request.estimatedPrice}
                       </span>
                     </div>
                   </div>

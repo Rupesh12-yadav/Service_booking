@@ -228,7 +228,7 @@ const Dashboard = () => {
                       </span>
                     </td>
                     <td className="px-8 py-5 whitespace-nowrap">
-                      <div className="text-sm font-black text-[#0F4C5C]">${booking.service.charge}</div>
+                      <div className="text-sm font-black text-[#0F4C5C]">₹{booking.service.charge}</div>
                     </td>
                   </tr>
                 )) : (
