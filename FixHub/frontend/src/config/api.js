@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://service-provider-py18.onrender.com/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://service-booking-enpp.onrender.com/api',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
