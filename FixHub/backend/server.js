@@ -8,10 +8,8 @@ if (process.env.NODE_ENV !== "production") {
 }
 const app = express();
 
-// Database connection
 connectDB();
 
-// CORS Configuration - Allow all origins for now
 app.use(cors({
   origin: true,
   credentials: true,
@@ -20,11 +18,9 @@ app.use(cors({
   optionsSuccessStatus: 200
 }));
 
-// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Routes
 const authRoutes = require("./routes/auth.routes");
 const adminRoutes = require("./routes/admin.routes");
 const serviceRoutes = require("./routes/service.routes");
@@ -43,26 +39,18 @@ app.use("/api/user", userRoutes);
 app.use("/api/technician", technicianRoutes);
 app.use("/api/admin", adminRoutes);
 
-// Test endpoint
 app.get('/api/test', (req, res) => {
-  res.json({ 
-    message: 'Backend is working!',
-    timestamp: new Date().toISOString(),
-    cors: 'enabled'
-  });
+  res.json({ message: 'Backend is working!', timestamp: new Date().toISOString() });
 });
 
-// Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', service: 'FixHub Backend' });
 });
 
-// Error handling middleware
 app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Something went wrong!' });
 });
 
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
@@ -70,4 +58,12 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  if (process.env.NODE_ENV === 'production') {
+    const https = require('https');
+    setInterval(() => {
+      https.get('https://service-booking-enpp.onrender.com/health', (res) => {
+        console.log(`Self-ping: ${res.statusCode}`);
+      }).on('error', () => {});
+    }, 14 * 60 * 1000);
+  }
 });
