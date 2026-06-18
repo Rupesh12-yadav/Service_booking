@@ -30,19 +30,6 @@ const Dashboard = () => {
         return;
       }
 
-      // Test backend connectivity
-      try {
-        const testResponse = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL}/test`,
-        );
-        const testData = await testResponse.json();
-        } catch (error) {
-        setError(
-          "Cannot connect to backend server. Please ensure backend is running.",
-        );
-        return;
-      }
-
       try {
         const userData = await userService.getUserProfile();
         setTechnicianData(userData);
